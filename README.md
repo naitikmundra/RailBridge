@@ -1,7 +1,13 @@
 
-## Getting Started
+## Local RailBridge Setup
 
-First, run the development server:
+First, install packages:
+
+```bash
+npm install
+```
+
+Second, run the development server:
 
 ```bash
 npm run dev
