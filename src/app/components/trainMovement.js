@@ -1,3 +1,5 @@
+
+
 export const startTrainMovement = ({
     tracks,
     setTrains,
@@ -7,6 +9,38 @@ export const startTrainMovement = ({
 	runBool,
     setConnectingTracksInfo
 }) => {
+	const getCurrentMainTrack = (train) => {
+    const trainX = Math.round(train.position.x / gridSize);
+    const trainY = Math.round(train.position.y / gridSize);
+    const tolerance = 0.001;
+
+    return tracks.find(track => {
+        if (!track.active) return false;
+        if (track.type === 'junction') return false; // ignore junctions
+
+        const startX = track.start.x / gridSize;
+        const startY = track.start.y / gridSize;
+        const endX = track.end.x / gridSize;
+        const endY = track.end.y / gridSize;
+
+        // vertical track
+        if (Math.abs(startX - endX) < tolerance && Math.abs(trainX - startX) < tolerance) {
+            const minY = Math.min(startY, endY);
+            const maxY = Math.max(startY, endY);
+            return trainY >= minY - tolerance && trainY <= maxY + tolerance;
+        }
+
+        // horizontal track
+        if (Math.abs(startY - endY) < tolerance && Math.abs(trainY - startY) < tolerance) {
+            const minX = Math.min(startX, endX);
+            const maxX = Math.max(startX, endX);
+            return trainX >= minX - tolerance && trainX <= maxX + tolerance;
+        }
+
+        return false;
+    });
+};
+
     const findConnections = (currentTrackId, currentPosition) => {
 		
         const trainX = Math.round(currentPosition.x / gridSize);
@@ -78,6 +112,10 @@ export const startTrainMovement = ({
                     const connections = findConnections(train.trackId, currentPos);
 
                     if (connections.length > 0) {
+						const mainTrack = getCurrentMainTrack({ ...train, position: currentPos });
+						if (mainTrack) {
+							console.log("Train is on main track:", mainTrack.id);
+						}
                         const newTrack = connections[0];
                         const newDx = newTrack.end.x - newTrack.start.x;
                         const newDy = newTrack.end.y - newTrack.start.y;
@@ -96,14 +134,16 @@ export const startTrainMovement = ({
                             ? (currentPos.y - newTrack.start.y) / newDy
                             : (currentPos.x - newTrack.start.x) / newDx;
 
-						let newDirection;
-						if (enteredFromStart) {
-							newDirection = 1; // entering from start → move forward
-						} else {
-							newDirection = -1; // entering from end → move backward
-						}
-
-                        return { ...train, trackId: newTrack.id, position: newPositionValue, direction: newDirection };
+						let newDirection = train.direction < 0 ? 1 : -1;
+						console.log("TRACK CHECK", newTrack.id, train.trackIdEND);
+						if (train.trackIdEND && mainTrack.id === train.trackIdEND) {
+							
+						}else{return {
+							...train,
+							trackId: newTrack.id,
+							position: newPositionValue,
+							direction: newDirection
+						};}
                     } else if (newPosition >= 1 || newPosition <= 0) {
                             return { ...train, speed: 0, direction: 0 }; // stop completely
 

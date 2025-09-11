@@ -25,6 +25,9 @@ const predictNextPositions = (train, track, gridSize) => {
   return nextPositions;
 };
 
+// store halted trains and why they’re halted
+const haltedTrainsRef = { current: new Map() };
+
 export const trainController = ({
   tracks,
   trainsRef,
@@ -59,29 +62,52 @@ export const trainController = ({
     }
   });
 
-  // 2. Find collisions
+  // 2. Find collisions and decide which trains must halt
   const trainsToHalt = new Set();
-collisionCandidates.forEach(trainIds => {
-  // only halt if at least 2 *different* trains occupy the same spot
-  const uniqueIds = [...new Set(trainIds)];
-  if (uniqueIds.length > 1) {
-    // halt all but first train
-    uniqueIds.slice(1).forEach(id => trainsToHalt.add(id));
-  }
-});
+  collisionCandidates.forEach(trainIds => {
+    const uniqueIds = [...new Set(trainIds)];
+    if (uniqueIds.length > 1) {
+      const blocker = uniqueIds[0]; // let first train continue
+      uniqueIds.slice(1).forEach(id => {
+        trainsToHalt.add(id);
+        haltedTrainsRef.current.set(id, { reason: "collision", blockedBy: blocker });
+      });
+    }
+  });
 
-  // 3. Halt trains by updating state
-  if (trainsToHalt.size > 0) {
-	
-    setTrains(prev =>
-      prev.map(train =>
-        trainsToHalt.has(train.id)
-          ? { ...train, haulted: true } // halt train
-          : train
-      )
-    );
-  }
+  // 3. Update train states (halt or resume)
+  setTrains(prev =>
+    prev.map(train => {
+      if (trainsToHalt.has(train.id)) {
+        // must halt this tick
+        return { ...train, haulted: true };
+      }
 
+      if (haltedTrainsRef.current.has(train.id)) {
+        // train was halted previously → check if still blocked
+        const info = haltedTrainsRef.current.get(train.id);
+        const blockerPredictions = predictedPositionsRef.current[info.blockedBy];
+        const myPredictions = predictedPositionsRef.current[train.id];
+
+        const stillBlocked = blockerPredictions?.some(pos1 =>
+          myPredictions?.some(pos2 => pos1.x === pos2.x && pos1.y === pos2.y)
+        );
+
+        if (stillBlocked) {
+          return { ...train, haulted: true };
+        } else {
+          // clear it, resume train
+          haltedTrainsRef.current.delete(train.id);
+          return { ...train, haulted: false };
+        }
+      }
+
+      // not halted, let it run
+      return { ...train, haulted: false };
+    })
+  );
+
+  // 4. Recurse
   runBool.current = true;
   timerRef.current = setTimeout(() => {
     trainController({

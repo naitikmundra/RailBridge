@@ -7,6 +7,6 @@ export const initialTrackDefinitions = [
 ];
 
 export const initialTrains = [
-    { id: 'Train-01', name: 'The Rocket', trackId: 'T-001', spawnPoint: 'end', direction: -1,haulted:false, speed: 0.5 },
+    { id: 'Train-01', name: 'The Rocket', trackId: 'T-001', spawnPoint: 'end', direction: -1,haulted:false, speed: 1 },
     { id: 'Train-02', name: 'The Rocket2', trackId: 'T-002', spawnPoint: 'end', direction: -1,haulted:false, speed:0.25 }
 ];

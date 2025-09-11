@@ -23,7 +23,21 @@ const App = () => {
     const [hoveredTrain, setHoveredTrain] = useState(null);
     const [connectingTracksInfo, setConnectingTracksInfo] = useState([]);
 	const predictedPositionsRef = useRef({});
+	const [trackType, setTrackType] = useState("main");
+	const [refTrack, setRefTrack] = useState("");
+	const [lengthFactor, setLengthFactor] = useState(1);
+	const [position, setPosition] = useState("below"); // "above" or "below"
+const [originTrack, setOriginTrack] = useState("");
+const [destinationTrack, setDestinationTrack] = useState("");
+const [spawnPoint, setSpawnPoint] = useState("start");
+const [trainSpeed, setTrainSpeed] = useState(50); // slider 1–100 → 0.01–1.0
+const [destinationEndpoint, setDestinationEndpoint] = useState("end");
 
+	// junction
+	const [junctionT1, setJunctionT1] = useState("");
+	const [junctionT2, setJunctionT2] = useState("");
+	const [junctionAttach, setJunctionAttach] = useState("mid");
+	const [parallel, setParallel] = useState(false);
 	const [isRunning, setIsRunning] = useState(false);
 	const [paused, setIsPaused] = useState(false);
 	const timerRef = useRef(null);	
@@ -104,7 +118,7 @@ const App = () => {
     return (
         <div className="flex flex-col md:flex-row h-screen bg-[#121212] p-4 font-sans text-gray-100">
             {/* Control Panel (1/5 width on desktop) */}
-			<aside className="w-full md:w-2/7 bg-gradient-to-b from-[#1f1f1f] to-[#141414] text-gray-200 p-6 md:p-8 rounded-lg shadow-2xl md:mr-4 mb-4 md:mb-0 border border-gray-700">
+			<aside className="w-full md:w-2/7 bg-gradient-to-b from-[#1f1f1f] to-[#141414] text-gray-200 p-6 md:p-8 rounded-lg shadow-2xl md:mr-4 mb-4 md:mb-0 border border-gray-700 overflow-y-auto max-h-screen">
 				<h2 className="text-2xl font-extrabold mb-6 flex items-center gap-2 text-yellow-400">
 					🚂 Control Panel
 				</h2>
@@ -215,70 +229,263 @@ const App = () => {
 
     {/* Add Track */}
     <div className="mb-4">
-      <h4 className="text-sm font-semibold mb-2">🛤 New Track</h4>
-      <button
-        className="px-3 py-1 bg-blue-600 hover:bg-blue-500 rounded-md text-sm"
-        onClick={() => {
-          const newId = `T-${(tracks.length + 1).toString().padStart(3, "0")}`;
-          const newTrack = {
-            id: newId,
-            type: "main",
-            active: true,
-            start: { x: 0 * gridSize, y: tracks.length * 2 * gridSize },
-            end: { x: 40 * gridSize, y: tracks.length * 2 * gridSize }
-          };
-          setTracks([...tracks, newTrack]);
-        }}
-      >
-        ➕ Add Track
-      </button>
-    </div>
+  <h4 className="text-sm font-semibold mb-2">🛤 New Track</h4>
 
-    {/* Add Train */}
-    <div>
-      <h4 className="text-sm font-semibold mb-2">🚂 New Train</h4>
+  {/* track type selector */}
+  <select
+    value={trackType}
+    onChange={(e) => setTrackType(e.target.value)}
+    className="bg-[#1e1e1e] border border-gray-600 rounded-md p-1 mb-2 w-full text-sm"
+  >
+    <option value="main">Main Track</option>
+    <option value="junction">Junction Track</option>
+  </select>
+
+  {/* --- Main Track Options --- */}
+  {trackType === "main" && (
+    <div className="space-y-2">
+      <label className="block text-xs">Next to Track:</label>
       <select
-        id="trackSelect"
-        className="bg-[#1e1e1e] border border-gray-600 rounded-md p-1 mr-2 text-sm"
+        value={refTrack}
+        onChange={(e) => setRefTrack(e.target.value)}
+        className="w-full bg-[#1e1e1e] border border-gray-600 rounded-md p-1 text-sm"
       >
-        {tracks.map(track => (
-          <option key={track.id} value={track.id}>
-            {track.id} ({track.type})
+	  <option value="" disabled>-- Select Track --</option>
+
+        {tracks.filter(t => t.type === "main").map((t) => (
+          <option key={t.id} value={t.id}>
+            {t.id} ({t.type})
           </option>
         ))}
       </select>
+
+      <label className="block text-xs">Above / Below:</label>
       <select
-        id="spawnSelect"
-        className="bg-[#1e1e1e] border border-gray-600 rounded-md p-1 mr-2 text-sm"
+        value={position}
+        onChange={(e) => setPosition(e.target.value)}
+        className="w-full bg-[#1e1e1e] border border-gray-600 rounded-md p-1 text-sm"
       >
+        <option value="below">Below</option>
+        <option value="above">Above</option>
+      </select>
+
+      <label className="block text-xs">Length:</label>
+      <select
+        value={lengthFactor}
+        onChange={(e) => setLengthFactor(parseFloat(e.target.value))}
+        className="w-full bg-[#1e1e1e] border border-gray-600 rounded-md p-1 text-sm"
+      >
+        <option value="1">Full</option>
+        <option value="0.25">1/4</option>
+        <option value="0.2">1/5</option>
+      </select>
+    </div>
+  )}
+
+  {/* --- Junction Track Options --- */}
+  {trackType === "junction" && (
+    <div className="space-y-2">
+      <label className="block text-xs">Between Tracks:</label>
+      <select
+        value={junctionT1}
+        onChange={(e) => setJunctionT1(e.target.value)}
+        className="w-full bg-[#1e1e1e] border border-gray-600 rounded-md p-1 text-sm"
+      >
+	  <option value="" disabled>-- Select Track --</option>
+
+        {tracks.filter(t => t.type === "main").map((t) => (
+          <option key={t.id} value={t.id}>{t.id}</option>
+        ))}
+      </select>
+      <select
+        value={junctionT2}
+        onChange={(e) => setJunctionT2(e.target.value)}
+        className="w-full bg-[#1e1e1e] border border-gray-600 rounded-md p-1 text-sm"
+      >
+	  <option value="" disabled>-- Select Track --</option>
+
+        {tracks.filter(t => t.type === "main").map((t) => (
+          <option key={t.id} value={t.id}>{t.id}</option>
+        ))}
+      </select>
+
+      <label className="block text-xs">Attach At:</label>
+      <select
+        value={junctionAttach}
+        onChange={(e) => setJunctionAttach(e.target.value)}
+        className="w-full bg-[#1e1e1e] border border-gray-600 rounded-md p-1 text-sm"
+      >
+	  
         <option value="start">Start</option>
+        <option value="mid">Mid</option>
         <option value="end">End</option>
       </select>
-      <button
-        className="px-3 py-1 bg-green-600 hover:bg-green-500 rounded-md text-sm"
-        onClick={() => {
-          const trackId = document.getElementById("trackSelect").value;
-          const spawnPoint = document.getElementById("spawnSelect").value;
 
-          const newTrainId = `Train-${(trains.length + 1).toString().padStart(2, "0")}`;
-          const newTrain = {
-            id: newTrainId,
-            name: `Train ${trains.length + 1}`,
-            trackId,
-            spawnPoint,
-            direction: spawnPoint === "end" ? -1 : 1,
-            haulted: false,
-            speed: 0.5,
-            position: spawnPoint === "end" ? 1 : 0
-          };
-
-          setTrains([...trains, newTrain]);
-        }}
-      >
-        ➕ Add Train
-      </button>
+      <label className="block text-xs flex items-center">
+        <input
+          type="checkbox"
+          checked={parallel}
+          onChange={(e) => setParallel(e.target.checked)}
+          className="mr-2"
+        />
+        Enable Parallel
+      </label>
     </div>
-  </div>
+  )}
+
+  {/* --- Add Track Button --- */}
+  <button
+    className="mt-3 px-3 py-1 bg-blue-600 hover:bg-blue-500 rounded-md text-sm w-full"
+    onClick={() => {
+      const newId = `T-${(tracks.length + 1).toString().padStart(3, "0")}`;
+
+      if (trackType === "main") {
+        const ref = tracks.find((t) => t.id === refTrack);
+        if (!ref) return;
+
+        // compute new Y based on above/below
+        let newY = position === "below"
+          ? ref.start.y + gridSize * 2
+          : ref.start.y - gridSize * 2;
+
+        // prevent overlap
+        while (tracks.some((t) => t.start.y === newY && t.end.y === newY)) {
+          newY += (position === "below" ? gridSize * 2 : -gridSize * 2);
+        }
+
+        const newTrack = {
+          id: newId,
+          type: "main",
+          active: true,
+          start: { x: ref.start.x, y: newY },
+          end: { x: ref.start.x + (40 * gridSize * lengthFactor), y: newY },
+        };
+        setTracks([...tracks, newTrack]);
+
+      } else {
+        const t1 = tracks.find((t) => t.id === junctionT1);
+        const t2 = tracks.find((t) => t.id === junctionT2);
+        if (!t1 || !t2) return;
+
+        const pickPoint = (track, pos) => {
+          if (pos === "start") return track.start;
+          if (pos === "end") return track.end;
+          return {
+            x: (track.start.x + track.end.x) / 2,
+            y: (track.start.y + track.end.y) / 2,
+          };
+        };
+
+        const p1 = pickPoint(t1, junctionAttach);
+        const p2 = pickPoint(t2, junctionAttach);
+
+        const newTrack = {
+          id: newId,
+          type: "junction",
+          active: true,
+          start: p1,
+          end: p2,
+          connect: [t1.id, t2.id],
+          attach: junctionAttach,
+          parallel,
+        };
+        setTracks([...tracks, newTrack]);
+      }
+    }}
+  >
+    ➕ Add Track
+  </button>
+</div>
+
+<div className="mt-3 space-y-3">
+  {/* Origin Track */}
+        <h4 className="text-sm font-semibold mb-2">🚂 New Train</h4>
+
+  <label className="block text-xs">Origin Track:</label>
+  <select
+    value={originTrack}
+    onChange={(e) => setOriginTrack(e.target.value)}
+    className="bg-[#1e1e1e] border border-gray-600 rounded-md p-1 w-full text-sm"
+  >
+    <option value="">-- Select Origin --</option>
+    {tracks.map(track => (
+      <option key={track.id} value={track.id}>
+        {track.id} ({track.type})
+      </option>
+    ))}
+  </select>
+
+  {/* Destination Track */}
+  <label className="block text-xs">Destination Track:</label>
+  <select
+    value={destinationTrack}
+    onChange={(e) => setDestinationTrack(e.target.value)}
+    className="bg-[#1e1e1e] border border-gray-600 rounded-md p-1 w-full text-sm"
+  >
+    <option value="">-- Select Destination --</option>
+    {tracks.map(track => (
+      <option key={track.id} value={track.id}>
+        {track.id} ({track.type})
+      </option>
+    ))}
+  </select>
+
+  {/* Spawn Point */}
+  <label className="block text-xs">Spawn Point:</label>
+  <select
+    value={spawnPoint}
+    onChange={(e) => setSpawnPoint(e.target.value)}
+    className="bg-[#1e1e1e] border border-gray-600 rounded-md p-1 w-full text-sm"
+  >
+    <option value="start">Start</option>
+    <option value="end">End</option>
+  </select>
+<label className="block text-xs">Destination Endpoint:</label>
+<select
+  value={destinationEndpoint}
+  onChange={(e) => setDestinationEndpoint(e.target.value)}
+  className="bg-[#1e1e1e] border border-gray-600 rounded-md p-1 w-full text-sm"
+>
+  <option value="start">Start</option>
+  <option value="end">End</option>
+</select>
+  {/* Speed Slider */}
+  <label className="block text-xs">Speed: {trainSpeed / 100}</label>
+  <input
+    type="range"
+    min="1"
+    max="100"
+    value={trainSpeed}
+    onChange={(e) => setTrainSpeed(Number(e.target.value))}
+    className="w-full"
+  />
+
+  {/* Add Train Button */}
+  <button
+    className="px-3 py-1 bg-green-600 hover:bg-green-500 rounded-md text-sm w-full"
+    onClick={() => {
+      if (!originTrack || !destinationTrack) return;
+
+      const newTrainId = `Train-${(trains.length + 1).toString().padStart(2, "0")}`;
+      const newTrain = {
+        id: newTrainId,
+        name: `Train ${trains.length + 1}`,
+        trackId: originTrack,
+        trackIdEND: destinationTrack,
+        spawnPoint,
+        direction: spawnPoint === "end" ? -1 : 1,
+        haulted: false,
+        speed: trainSpeed / 100,
+        position: spawnPoint === "end" ? 1 : 0
+      };
+
+      setTrains([...trains, newTrain]);
+    }}
+  >
+    ➕ Add Train
+  </button>
+</div>
+</div>
 )}
 
 {isRunning && (
